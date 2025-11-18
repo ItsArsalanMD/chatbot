@@ -1,0 +1,62 @@
+CREATE TABLE chatdata (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    problem NVARCHAR(MAX),
+    solution NVARCHAR(MAX)
+);
+
+insert into chatdata(problem,solution)
+values('How to change password','Complete detail to change password.. Steps are here 1...  2....'),
+('How to logout','Complete detail to logout.. Steps are here 1...  2....'),
+('How to delete data','Complete detail to delete data.. Steps are here 1...  2....')
+
+pip install fastapi uvicorn sqlalchemy
+pip install pyodbc
+
+Create a file named db.py:
+
+from sqlalchemy import create_engine, Column, Integer, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+# SQLite database file (you can change this to MSSQL or PostgreSQL)
+DATABASE_URL = "sqlite:///./chatbot.db"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine)
+Base = declarative_base()
+
+class ChatData(Base):
+    __tablename__ = "chat_data"
+    id = Column(Integer, primary_key=True, index=True)
+    problem = Column(Text)
+    solution = Column(Text)
+
+Base.metadata.create_all(bind=engine)
+---
+Create a file named main.py:
+
+from fastapi import FastAPI, Query
+from sqlalchemy.orm import Session
+from db import SessionLocal, ChatData
+
+app = FastAPI(title="Simple Chatbot API")
+
+@app.get("/chatbot/")
+def chatbot(query: str = Query(..., description="Ask your question")):
+    db: Session = SessionLocal()
+
+    # Find matching problem (case-insensitive)
+    result = db.query(ChatData).filter(ChatData.problem.ilike(f"%{query}%")).first()
+
+    if not result:
+        return {"query": query, "solution": "Sorry, I don’t have an answer for that."}
+
+    return {"query": query, "solution": result.solution}
+
+---
+
+Run this in the same folder:
+
+uvicorn main:app --reload
+http://127.0.0.1:8000/chatbot?query=reset password
+
